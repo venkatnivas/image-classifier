@@ -71,9 +71,8 @@ def predict(image_path, model, top_k, device):
 
     if device == 'gpu':
         model.to('cuda')
-        output = torch.exp(model.forward(image_tensor.to('cuda').float()))
-    else:
-        output = torch.exp(model.forward(image_tensor.float()))
+
+    output = torch.exp(model.forward(image_tensor.to('cuda').float()))
 
     results, index = output.topk(top_k)
 
