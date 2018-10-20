@@ -74,9 +74,15 @@ def main():
         'data_directory', help='data directory to train the network')
     parser.add_argument('--save_dir', default='save_directory',
                         help='directory to save checkpoint')
+    parser.add_argument('--epochs', default=5,
+                        help='Number of epochs to train the model')
+    parser.add_argument('--learning_rate', default=0.001,
+                        help='Learning rate for the model to train on the training set')
     args = parser.parse_args()
     data_dir = args.data_directory
     save_dir = args.save_dir
+    learning_rate = args.learning_rate
+    epochs = args.epochs
 
     # create directory to save checkpoint
     cwd = os.getcwd()
@@ -85,10 +91,8 @@ def main():
         os.makedirs(checkpoint_path)
 
     data_transforms, image_datasets, dataloaders = load_data(data_dir)
-    with open('cat_to_name.json', 'r') as f:
-        cat_to_name = json.load(f)
 
-    my_network = PreTrainedNetwork("densenet161", 0.001, 5)
+    my_network = PreTrainedNetwork("densenet161", learning_rate, epochs)
     my_network.train(dataloaders['train_loaders'],
                      dataloaders['validation_loaders'], 'gpu')
 
