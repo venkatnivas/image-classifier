@@ -72,15 +72,15 @@ def main():
     parser = argparse.ArgumentParser(prog="train")
     parser.add_argument(
         'data_directory', help='data directory to train the network')
-    parser.add_argument('--save_dir', type='string',
-                        default='save_directory', help='directory to save checkpoint')
+    parser.add_argument('--save_dir', default='save_directory',
+                        help='directory to save checkpoint')
     args = parser.parse_args()
     data_dir = args.data_directory
     save_dir = args.save_dir
 
     # create directory to save checkpoint
     cwd = os.getcwd()
-    checkpoint_path = os.path.join(cwd, data_dir)
+    checkpoint_path = os.path.join(cwd, save_dir)
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path)
 
