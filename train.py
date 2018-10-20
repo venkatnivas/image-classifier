@@ -1,8 +1,5 @@
 #import packages
 
-%matplotlib inline
-%config InlineBackend.figure_format = 'retina'
-
 import numpy as np
 import pandas
 import torch
@@ -20,23 +17,85 @@ from PIL import Image
 
 import argparse
 import sys
+import os
+from network import PreTrainedNetwork
 
-#Load directory
-def load_dir(data_dir):
+# Load directory
+
+
+def load_data(data_dir):
     train_dir = data_dir + '/train'
     valid_dir = data_dir + '/valid'
     test_dir = data_dir + '/test'
 
-    return train_dir,valid_dir,test_dir
+    # Define your transforms for the training, validation, and testing sets
+    data_transforms = {
+        'train_transforms': transforms.Compose([transforms.RandomRotation(30),
+                                                transforms.RandomResizedCrop(
+                                                    224),
+                                                transforms.RandomHorizontalFlip(),
+                                                transforms.ToTensor(),
+                                                transforms.Normalize([0.485, 0.456, 0.406],
+                                                                     [0.229, 0.224, 0.225])]),
+        'test_transforms': transforms.Compose([transforms.Resize(256),
+                                               transforms.CenterCrop(224),
+                                               transforms.ToTensor(),
+                                               transforms.Normalize([0.485, 0.456, 0.406],
+                                                                    [0.229, 0.224, 0.225])]),
+        'validation_transforms': transforms.Compose([transforms.Resize(256),
+                                                     transforms.CenterCrop(
+                                                         224),
+                                                     transforms.ToTensor(),
+                                                     transforms.Normalize([0.485, 0.456, 0.406],
+                                                                          [0.229, 0.224, 0.225])])
+    }
+
+    # Load the datasets with ImageFolder
+    image_datasets = {
+        'train_dataset': datasets.ImageFolder(train_dir, transform=data_transforms['train_transforms']),
+        'test_dataset': datasets.ImageFolder(test_dir, transform=data_transforms['test_transforms']),
+        'validation_dataset': datasets.ImageFolder(valid_dir, transform=data_transforms['validation_transforms'])
+    }
+
+    # Using the image datasets and the trainforms, define the dataloaders
+    dataloaders = {
+        'train_loaders': torch.utils.data.DataLoader(image_datasets['train_dataset'], batch_size=64, shuffle=True),
+        'test_loaders': torch.utils.data.DataLoader(image_datasets['test_dataset'], batch_size=64, shuffle=True),
+        'validation_loaders': torch.utils.data.DataLoader(image_datasets['validation_dataset'], batch_size=64, shuffle=True)
+    }
+
+    return data_transforms, image_datasets, dataloaders
+
 
 def main():
-    #argparse
+    # argparse
     parser = argparse.ArgumentParser(prog="train")
-    parser.add_argument('data_directory', help='directory containing the images to train the network')
+    parser.add_argument(
+        'data_directory', help='data directory to train the network')
+    parser.add_argument('--save_dir', type='string',
+                        default='save_directory', help='directory to save checkpoint')
     args = parser.parse_args()
     data_dir = args.data_directory
-    train_dir,valid_dir,test_dir = load_dir(data_dir)
-    print(train_dir,valid_dir,test_dir)
+    save_dir = args.save_dir
+
+    # create directory to save checkpoint
+    cwd = os.getcwd()
+    checkpoint_path = os.path.join(cwd, data_dir)
+    if not os.path.exists(checkpoint_path):
+        os.makedirs(checkpoint_path)
+
+    data_transforms, image_datasets, dataloaders = load_data(data_dir)
+    with open('cat_to_name.json', 'r') as f:
+        cat_to_name = json.load(f)
+
+    my_network = PreTrainedNetwork("densenet161", 0.001, 5)
+    my_network.train(dataloaders['train_loaders'],
+                     dataloaders['validation_loaders'], 'gpu')
+
+    # save checkpoint
+    my_network.save_checkpoint(
+        checkpoint_path, data_transforms, image_datasets['train_dataset'])
+
 
 if __name__ == "__main__":
     main()
