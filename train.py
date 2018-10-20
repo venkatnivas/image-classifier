@@ -74,15 +74,22 @@ def main():
         'data_directory', help='data directory to train the network')
     parser.add_argument('--save_dir', default='save_directory',
                         help='directory to save checkpoint')
-    parser.add_argument('--epochs', default=5,
+    parser.add_argument('--epochs', default=3,
                         help='Number of epochs to train the model')
     parser.add_argument('--learning_rate', default=0.001,
                         help='Learning rate for the model to train on the training set')
+    parser.add_argument('--gpu', action='store_true', default=False,
+                        help='Flag to enable gpu for training models')
     args = parser.parse_args()
     data_dir = args.data_directory
     save_dir = args.save_dir
     learning_rate = args.learning_rate
     epochs = args.epochs
+
+    if args.gpu:
+        device = 'gpu'
+    else:
+        device = 'cpu'
 
     # create directory to save checkpoint
     cwd = os.getcwd()
@@ -94,7 +101,7 @@ def main():
 
     my_network = PreTrainedNetwork("densenet161", learning_rate, epochs)
     my_network.train(dataloaders['train_loaders'],
-                     dataloaders['validation_loaders'], 'gpu')
+                     dataloaders['validation_loaders'], device)
 
     # save checkpoint
     my_network.save_checkpoint(
