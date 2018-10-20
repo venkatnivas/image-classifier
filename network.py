@@ -12,30 +12,38 @@ import os.path
 
 class PreTrainedNetwork:
 
-    def __init__(self, model="densenet161", learning_rate=0.001, epochs=5):
+    def __init__(self, model, input_size, output_size, hidden_units, learning_rate, epochs):
 
         # Load pre-trained network
         # TODO: Change for differen models
-        self.model = models.densenet161(pretrained=True)
+        # self.model = models.densenet161(pretrained=True)
+        self.model = model
+        self.input_size = input_size
+        self.output_size = output_size
 
         # Freeze parameters
         for param in self.model.parameters():
             param.requires_grad = False
 
-        # TODO change it for different models
+        #
+        _hidden_layers = OrderedDict()
 
-        classifier = nn.Sequential(OrderedDict([
-            ('fc1', nn.Linear(2208, 512)),
-            ('relu', nn.ReLU()),
-            ('fc2', nn.Linear(512, 256)),
-            ('relu', nn.ReLU()),
-            ('fc3', nn.Linear(256, 128)),
-            ('relu', nn.ReLU()),
-            ('fc4', nn.Linear(128, 102)),
-            ('output', nn.LogSoftmax(dim=1))
-        ]))
+        _hidden_layers.update(
+            {'fc1': nn.Linear(self.input_size, hidden_units[0])})
 
-        self.model.classifier = classifier
+        # Add a variable number of more hidden layers
+        layer_sizes = zip(hidden_units[:-1], hidden_units[1:])
+        count = 2
+        for h1, h2 in layer_sizes:
+            _hidden_layers.update({'fc' + str(count): nn.Linear(h1, h2)})
+            _hidden_layers.update({'relu' + str(count): nn.ReLU()})
+            count += 1
+        _hidden_layers.update(
+            {'fc' + str(count): nn.Linear(hidden_units[-1], self.output_size)})
+
+        _hidden_layers.update({'output': nn.LogSoftmax(dim=1)})
+
+        self.model.classifier = nn.Sequential(_hidden_layers)
 
         self.learning_rate = learning_rate
         self.epochs = epochs
@@ -44,9 +52,8 @@ class PreTrainedNetwork:
         self.optimizer = optim.Adam(
             self.model.classifier.parameters(), lr=self.learning_rate)
 
-    # train the network
     def train(self, trainloader, testloader, device='cpu', print_every=40):
-
+        # train the network
         print_every = print_every
         steps = 0
 
@@ -95,8 +102,8 @@ class PreTrainedNetwork:
                     # Make sure training is back on
                     self.model.train()
 
-    # Validate the network
     def _validation(self, testloader, device):
+        # Validate network
         test_loss = 0
         accuracy = 0
         for ii, (images, labels) in enumerate(testloader):
@@ -113,12 +120,10 @@ class PreTrainedNetwork:
 
         return test_loss, accuracy
 
-    # Save checkpoint
-
     def save_checkpoint(self, directory, data_transforms, image_datasets):
-        # TODO: Save the checkpoint
-        checkpoint = {'input_size': 2208,
-                      'output_size': 102,
+        # Save the checkpoint
+        checkpoint = {'input_size': self.input_size,
+                      'output_size': self.output_size,
                       'epochs': self.epochs,
                       'learning_rate': self.learning_rate,
                       'batch_size': 64,

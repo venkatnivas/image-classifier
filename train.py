@@ -67,6 +67,22 @@ def load_data(data_dir):
     return data_transforms, image_datasets, dataloaders
 
 
+def getModel(arch):
+    # Dictionary mapping for the supported pretrained models
+    input_size_dict = {
+        'densenet121': (models.densenet121(pretrained=True), 1024),
+        'densenet161': (models.densenet161(pretrained=True), 2208),
+        'densenet169': (models.densenet169(pretrained=True), 1664),
+        'densenet201': (models.densenet201(pretrained=True), 1920),
+        'vgg11': (models.vgg11(pretrained=True), 25088),
+        'vgg13': (models.vgg13(pretrained=True), 25088),
+        'vgg16': (models.vgg16(pretrained=True), 25088),
+        'vgg19': (models.vgg19(pretrained=True), 25088),
+    }
+
+    return input_size_dict[arch]
+
+
 def main():
     # argparse
     parser = argparse.ArgumentParser(prog="train")
@@ -74,18 +90,39 @@ def main():
         'data_directory', help='data directory to train the network')
     parser.add_argument('--save_dir', default='save_directory',
                         help='directory to save checkpoint')
-    parser.add_argument('--epochs', default=3,
+    parser.add_argument('--epochs', default=3, type=int,
                         help='Number of epochs to train the model')
-    parser.add_argument('--learning_rate', default=0.001,
+    parser.add_argument('--learning_rate', default=0.001, type=float,
                         help='Learning rate for the model to train on the training set')
     parser.add_argument('--gpu', action='store_true', default=False,
                         help='Flag to enable gpu for training models')
+    parser.add_argument('--hidden_units', nargs='+', type=int,
+                        default=[512, 256, 128], help='The hidden units for the network')
+    parser.add_argument('--arch', default='densenet161', type=str,
+                        help='Pretrained Model to use for the network')
     args = parser.parse_args()
     data_dir = args.data_directory
     save_dir = args.save_dir
     learning_rate = args.learning_rate
     epochs = args.epochs
+    hidden_units = args.hidden_units
+    arch = args.arch
 
+    # Get the model and input_size
+    try:
+        model, input_size = getModel(arch)
+    except:
+        print('For now, supporting densenet and vgg only')
+        sys.exit()
+
+    # Idx to name mapping
+    with open('cat_to_name.json', 'r') as f:
+        cat_to_name = json.load(f)
+
+    # Output size of the network
+    output_size = len(cat_to_name)
+
+    # Device used for training
     if args.gpu:
         device = 'gpu'
     else:
@@ -97,9 +134,14 @@ def main():
     if not os.path.exists(checkpoint_path):
         os.makedirs(checkpoint_path)
 
+    # transform images and get train, test and validation datasets
     data_transforms, image_datasets, dataloaders = load_data(data_dir)
 
-    my_network = PreTrainedNetwork("densenet161", learning_rate, epochs)
+    # Use a pretrained network for the model
+    my_network = PreTrainedNetwork(
+        model, input_size, output_size, hidden_units, learning_rate, epochs)
+
+    # train the network
     my_network.train(dataloaders['train_loaders'],
                      dataloaders['validation_loaders'], device)
 
